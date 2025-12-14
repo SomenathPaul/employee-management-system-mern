@@ -1,6 +1,6 @@
 # Employee Management System (MERN Stack)
 
-A full-stack Employee Management System with role-based dashboards for managers and employees.
+A full-stack Employee Management System built with the MERN stack featuring role-based dashboards for managers and employees.
 
 ## Features
 - Attendance management with analytics
