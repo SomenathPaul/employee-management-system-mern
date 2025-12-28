@@ -1,10 +1,17 @@
 // client/src/components/dashboard-ui-components/NotificationsList.jsx
 import React, { useEffect, useState, useContext } from "react";
+import { Link } from "react-router-dom";
 import api from "../../utils/api";
 import { HiMiniBellAlert } from "react-icons/hi2";
-import { ThemeContext } from "../../context/ThemeContext"; // optional — safe if not provided
+import { ThemeContext } from "../../context/ThemeContext";
 
+/**
+ * NotificationsList Component
+ * Renders a compact, high-priority list of the latest company notifications.
+ * Designed to fit into dashboard sidebars or narrow columns.
+ */
 export default function NotificationsList() {
+  // Use a safe fallback if ThemeContext isn't available
   const { isDark } = useContext(ThemeContext) || { isDark: false };
 
   const [notes, setNotes] = useState([]);
@@ -12,138 +19,149 @@ export default function NotificationsList() {
 
   useEffect(() => {
     let cancelled = false;
-    const fetch = async () => {
+    
+    /**
+     * Fetches the 5 most recent notifications but only displays the top 2
+     * to keep the dashboard view uncluttered.
+     */
+    const fetchNotifications = async () => {
       setLoading(true);
       try {
-        // fetch latest 5, then we'll show 2 most recent
         const res = await api.get("/notifications", { params: { page: 1, limit: 5 } });
         const list = res.data?.data || res.data || [];
+        
+        // Sorting by date descending (latest first)
         const sorted = [...list].sort((a, b) => {
           const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return db - da;
         });
+
         if (!cancelled) setNotes(sorted);
       } catch (err) {
-        console.error("fetch notifications", err);
+        console.error("fetch notifications error:", err);
         if (!cancelled) setNotes([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
-    fetch();
-    return () => {
-      cancelled = true;
-    };
+
+    fetchNotifications();
+    return () => { cancelled = true; };
   }, []);
 
-  const shown = notes.slice(0, 2); // show only 2 latest
+  const shown = notes.slice(0, 2); // Display limit for dashboard widget
 
-  const containerBg = isDark ? "bg-slate-800 border-slate-700 text-slate-100" : "bg-white border-gray-100 text-slate-900";
-  const itemBg = isDark ? "bg-slate-700/40 hover:bg-slate-700/60" : "bg-gray-50 hover:bg-white";
-  const typeStyles = (type) => {
-    switch ((type || "").toLowerCase()) {
-      case "announcement":
-        return isDark ? "bg-blue-800 text-blue-200" : "bg-blue-50 text-blue-700";
-      case "blog":
-        return isDark ? "bg-green-800 text-green-200" : "bg-green-50 text-green-700";
-      case "notice":
-        return isDark ? "bg-amber-800 text-amber-200" : "bg-amber-50 text-amber-700";
-      case "update":
-        return isDark ? "bg-purple-800 text-purple-200" : "bg-purple-50 text-purple-700";
-      default:
-        return isDark ? "bg-gray-700 text-gray-200" : "bg-gray-100 text-gray-700";
-    }
+  // --- Dynamic Theme Styles ---
+  const containerBg = isDark 
+    ? "bg-slate-800/50 backdrop-blur-md border-slate-700 text-slate-100" 
+    : "bg-white border-gray-100 text-slate-900 shadow-sm";
+    
+  const itemBg = isDark 
+    ? "bg-slate-700/30 hover:bg-slate-700/50 border-slate-600/50" 
+    : "bg-gray-50 hover:bg-white border-gray-200";
+
+  /**
+   * Returns Tailwind classes for category badges based on type and theme.
+   */
+  const getTypeStyles = (type) => {
+    const t = (type || "").toLowerCase();
+    const darkClasses = {
+      announcement: "bg-blue-900/40 text-blue-300 border-blue-800",
+      blog: "bg-green-900/40 text-green-300 border-green-800",
+      notice: "bg-amber-900/40 text-amber-300 border-amber-800",
+      update: "bg-purple-900/40 text-purple-300 border-purple-800",
+      default: "bg-slate-700 text-slate-300 border-slate-600"
+    };
+    const lightClasses = {
+      announcement: "bg-blue-50 text-blue-700 border-blue-100",
+      blog: "bg-green-50 text-green-700 border-green-100",
+      notice: "bg-amber-50 text-amber-700 border-amber-100",
+      update: "bg-purple-50 text-purple-700 border-purple-100",
+      default: "bg-gray-100 text-gray-600 border-gray-200"
+    };
+
+    const set = isDark ? darkClasses : lightClasses;
+    return set[t] || set.default;
   };
 
   return (
     <div
-      className={`rounded-xl shadow-sm border p-4 overflow-hidden ${containerBg}`}
+      className={`rounded-2xl border p-5 transition-all duration-300 ${containerBg}`}
       role="region"
       aria-label="Company notifications"
     >
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`p-2 rounded-md ${isDark ? "bg-slate-700/50" : "bg-blue-50"}`}>
-          <HiMiniBellAlert className={`${isDark ? "text-slate-100" : "text-blue-600"} w-5 h-5`} />
+      {/* Widget Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-xl transition-colors ${isDark ? "bg-blue-500/10" : "bg-blue-50"}`}>
+            <HiMiniBellAlert className={`${isDark ? "text-blue-400" : "text-blue-600"} w-5 h-5`} />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm tracking-tight">Company Updates</h3>
+            <p className="text-[11px] opacity-60">What's new in the workplace</p>
+          </div>
         </div>
-        <div className="flex-1">
-          <div className={`font-semibold ${isDark ? "text-slate-100" : "text-gray-800"}`}>Company notifications</div>
-          <div className="text-xs mt-0.5 text-gray-400">Latest updates & announcements</div>
-        </div>
+        <Link 
+          to="/employee/notifications" 
+          className="text-[11px] font-bold uppercase tracking-wider text-blue-500 hover:underline"
+        >
+          View All
+        </Link>
       </div>
 
+      {/* List Content */}
       {loading ? (
-        <div className={`py-6 text-center ${isDark ? "text-slate-300" : "text-gray-500"}`}>Loading...</div>
+        <div className="space-y-3">
+          {[1, 2].map(i => (
+            <div key={i} className={`h-20 rounded-xl animate-pulse ${isDark ? "bg-slate-700/50" : "bg-gray-100"}`} />
+          ))}
+        </div>
       ) : shown.length === 0 ? (
-        <div className={`py-6 text-center text-sm ${isDark ? "text-slate-400" : "text-gray-500"}`}>
-          No notifications available
+        <div className="py-10 text-center">
+          <p className="text-xs opacity-50 font-medium italic">No new alerts today.</p>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-4">
           {shown.map((n) => (
             <li
               key={n._id}
-              /* Responsive layout:
-                 - small devices: column layout (image on top, content below), readable text wrapping
-                 - sm+ devices: original row layout preserved
-              */
-              className={`flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 rounded-lg border-1 border-slate-400 ${itemBg}`}
-              title={n.title}
+              className={`group relative flex flex-col sm:flex-row items-start gap-4 p-4 rounded-xl border transition-all duration-200 ${itemBg}`}
             >
-              {/* Image / avatar area */}
-              <div className="flex-shrink-0 w-full sm:w-auto flex items-center justify-center">
+              {/* Media Section: Image or Initials */}
+              <div className="flex-shrink-0 mx-auto sm:mx-0">
                 {n.image ? (
                   <img
                     src={`http://localhost:5000/notification_uploads/${n.image}`}
-                    alt={n.title || "notification image"}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded object-cover border"
+                    alt=""
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border-2 border-white/10 shadow-sm"
                   />
                 ) : (
-                  <div
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded flex items-center justify-center font-semibold ${typeStyles(n.type)}`}
-                  >
-                    <span className="text-sm">
-                      {(n.title || "N").split(" ").map(s => s[0]).slice(0,2).join("")}
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center font-bold border-2 ${getTypeStyles(n.type)}`}>
+                    <span className="text-xs uppercase tracking-tighter">
+                      {(n.title || "N").split(" ").map(s => s[0]).slice(0, 2).join("")}
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* Content */}
+              {/* Content Section */}
               <div className="flex-1 min-w-0 w-full">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
-                  <div className="min-w-0">
-                    {/* Title — allow wrapping on small screens, but truncate on larger */}
-                    <h4 className={`text-sm font-medium ${isDark ? "text-slate-100" : "text-gray-900"} whitespace-normal sm:whitespace-nowrap sm:truncate`}>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-bold truncate pr-2">
                       {n.title}
                     </h4>
-
-                    {/* Message — small devices: allow 2 lines, larger: single-line truncated */}
-                    <p className={`${isDark ? "text-slate-200/90" : "text-gray-600"} mt-1 text-sm sm:text-xs whitespace-nowrap truncate`}>
-                      {n.message}
-                    </p>
+                    <span className="text-[10px] opacity-50 font-medium whitespace-nowrap">
+                      {new Date(n.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
                   </div>
+                  
+                  <p className={`text-xs leading-relaxed line-clamp-2 ${isDark ? "text-slate-400" : "text-gray-600"}`}>
+                    {n.message}
+                  </p>
 
-                  {/* Date — on small devices show below title/message; on sm+ keep to the right */}
-                  <div className="text-xs text-gray-400 mt-2 sm:mt-0 sm:ml-3 sm:flex-shrink-0">
-                    {new Date(n.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
-
-                {/* Bottom row: badge + read link — stacked on small, inline on larger */}
-                <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full inline-block ${typeStyles(n.type)}`} aria-hidden>
-                    {n.type || "Update"}
-                  </span>
-
-                  <div className="mt-1 sm:mt-0 sm:ml-auto">
-                    <a
-                      href={`/notifications/${n._id}`}
-                      className={`text-xs font-medium underline ${isDark ? "text-slate-100/90" : "text-gray-700/90"}`}
-                    >
-                      Read
-                    </a>
-                  </div>
+                  
                 </div>
               </div>
             </li>

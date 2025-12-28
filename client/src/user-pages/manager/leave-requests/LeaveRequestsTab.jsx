@@ -11,6 +11,7 @@ import {
   Legend,
 } from "recharts";
 import { ThemeContext } from "../../../context/ThemeContext";
+import { FiSearch, FiFilter, FiClock, FiCheckCircle, FiXCircle, FiInfo, FiRefreshCw } from "react-icons/fi";
 
 const STATUS_COLORS = {
   Pending: "#f59e0b",
@@ -21,376 +22,291 @@ const STATUS_COLORS = {
   Other: "#6b7280",
 };
 
+/**
+ * LeaveRequestsTab Component
+ * Purpose: Central management hub for leave requests for Managers.
+ * Features: Analytics overview, multi-level status filtering, and workflow actions (Verify/Approve/Reject).
+ */
 export default function LeaveRequestsTab() {
   const { isDark } = useContext(ThemeContext);
 
+  // --- STATE MANAGEMENT ---
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // UI state
+  // UI / Filter States
   const [selected, setSelected] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [query, setQuery] = useState("");
-  const [sortOrder, setSortOrder] = useState("newest"); // newest | oldest
+  const [sortOrder, setSortOrder] = useState("newest");
 
-  // Theme classes
-  const pageBg = isDark ? "bg-slate-900 text-gray-200" : "bg-white text-gray-900";
-  const panelBg = isDark ? "bg-slate-800 border-slate-700" : "bg-white border-gray-100";
-  const inputBase = isDark
-    ? "border p-2 rounded bg-slate-700 text-gray-200 border-slate-600"
-    : "border p-2 rounded bg-white text-gray-800 border-gray-300";
-  const selectBase = inputBase;
-  const btnReset = isDark ? "px-3 py-1 bg-slate-700 text-gray-200 rounded hover:bg-slate-600" : "px-3 py-1 bg-gray-100 rounded hover:bg-gray-200";
-  const btnPrimary = isDark ? "px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-500" : "px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700";
-  const tableHeadBg = isDark ? "bg-slate-800 text-slate-100" : "bg-gray-50 text-gray-700";
-  const rowHover = isDark ? "hover:bg-slate-700" : "hover:bg-gray-50";
-  const badgeMapDark = {
-    Pending: "bg-yellow-800 text-yellow-100",
-    Verified: "bg-blue-900 text-blue-100",
-    Approved: "bg-green-900 text-green-100",
-    Rejected: "bg-rose-900 text-rose-100",
-    Expired: "bg-slate-700 text-slate-100",
-    Other: "bg-slate-700 text-slate-100",
+  // --- THEME-BASED DYNAMIC CLASSES ---
+  const pageBg = isDark ? "bg-slate-900 text-slate-100" : "bg-gray-50 text-slate-900";
+  const cardBg = isDark ? "bg-slate-800/50 backdrop-blur-md border-slate-700" : "bg-white border-gray-100 shadow-sm";
+  const inputBase = isDark 
+    ? "bg-slate-700 border-slate-600 text-white focus:ring-indigo-500/50" 
+    : "bg-white border-gray-300 text-gray-900 focus:ring-blue-500/20";
+  const badgeMap = isDark ? {
+    Pending: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
+    Verified: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
+    Approved: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
+    Rejected: "bg-rose-500/20 text-rose-400 border border-rose-500/30",
+    Expired: "bg-slate-500/20 text-slate-400 border border-slate-500/30",
+  } : {
+    Pending: "bg-amber-100 text-amber-700 border border-amber-200",
+    Verified: "bg-blue-100 text-blue-700 border border-blue-200",
+    Approved: "bg-emerald-100 text-emerald-700 border border-emerald-200",
+    Rejected: "bg-rose-100 text-rose-700 border border-rose-200",
+    Expired: "bg-gray-100 text-gray-700 border border-gray-200",
   };
-  const badgeMapLight = {
-    Pending: "bg-yellow-100 text-yellow-800",
-    Verified: "bg-blue-100 text-blue-800",
-    Approved: "bg-green-100 text-green-800",
-    Rejected: "bg-red-100 text-red-800",
-    Expired: "bg-gray-200 text-gray-800",
-    Other: "bg-gray-100 text-gray-700",
-  };
-  const emptyText = isDark ? "text-gray-400" : "text-gray-500";
-  const analyticsCard = isDark ? "bg-slate-800 border-slate-700 text-gray-200" : "bg-white border-gray-100 text-gray-800";
-  const modalBg = isDark ? "bg-slate-800 text-gray-200" : "bg-white text-gray-900";
 
-  // fetch with fallback path (getLeaves or leaves)
+  /* ================= FETCHING LOGIC ================= */
   const fetchLeaves = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      // try existing endpoint first, fallback to manager/leaves
       let res;
       try {
-        res = await api.get("/manager/getLeaves");
-      } catch (err) {
+        res = await api.get("/manager/leaves/getLeaves");
+      } catch {
         res = await api.get("/manager/leaves");
       }
-
-      // res.data may be array or { data: [...] }
       const data = Array.isArray(res.data) ? res.data : res.data.data || [];
       setLeaves(data);
     } catch (err) {
-      console.error("fetchLeaves error", err);
-      setError(err);
-      setLeaves([]);
+      console.error("fetchLeaves error:", err);
+      setError(true);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchLeaves();
-  }, []);
+  useEffect(() => { fetchLeaves(); }, []);
 
-  // Helper: isExpired
+  /* ================= HELPERS & PROCESSING ================= */
   const isExpired = (toDate) => {
     if (!toDate) return false;
-    try {
-      const t = new Date(toDate);
-      const today = new Date();
-      // compare date-only
-      const tOnly = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-      const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      return tOnly < todayOnly;
-    } catch {
-      return false;
-    }
+    const t = new Date(toDate);
+    const today = new Date();
+    return new Date(t.getFullYear(), t.getMonth(), t.getDate()) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
   };
 
-  // Derived filtered list
+  // Memoized filter and sort logic for better performance
   const filtered = useMemo(() => {
-    if (!leaves || leaves.length === 0) return [];
+    if (!leaves) return [];
+    const q = query.trim().toLowerCase();
+    
+    let list = leaves.map(l => ({
+      ...l,
+      effectiveStatus: isExpired(l.toDate) && l.status === "Pending" ? "Expired" : l.status || "Other",
+      expired: isExpired(l.toDate)
+    }));
 
-    const q = (query || "").trim().toLowerCase();
+    if (statusFilter !== "All") {
+      list = list.filter(l => l.effectiveStatus.toLowerCase() === statusFilter.toLowerCase());
+    }
 
-    const out = leaves
-      .map((l) => {
-        const expired = isExpired(l.toDate);
-        // show 'Expired' visually if expired and still Pending
-        const effectiveStatus = expired && l.status === "Pending" ? "Expired" : l.status || "Other";
-        return { ...l, effectiveStatus, expired: !!expired };
-      })
-      .filter((l) => {
-        // status filter
-        if (statusFilter !== "All" && (l.effectiveStatus || "").toLowerCase() !== statusFilter.toLowerCase()) {
-          return false;
-        }
-        // text search (name, employeeId, leaveType, reason)
-        if (!q) return true;
-        return (
-          (l.name || "").toLowerCase().includes(q) ||
-          (l.employeeId || "").toLowerCase().includes(q) ||
-          (l.leaveType || "").toLowerCase().includes(q) ||
-          (l.reason || "").toLowerCase().includes(q)
-        );
-      });
+    if (q) {
+      list = list.filter(l => 
+        (l.name || "").toLowerCase().includes(q) || 
+        (l.employeeId || "").toLowerCase().includes(q)
+      );
+    }
 
-    out.sort((a, b) => {
-      if (sortOrder === "newest") return new Date(b.appliedAt || b.createdAt || 0) - new Date(a.appliedAt || a.createdAt || 0);
-      return new Date(a.appliedAt || a.createdAt || 0) - new Date(b.appliedAt || b.createdAt || 0);
+    return list.sort((a, b) => {
+      const timeA = new Date(a.appliedAt || a.createdAt || 0);
+      const timeB = new Date(b.appliedAt || b.createdAt || 0);
+      return sortOrder === "newest" ? timeB - timeA : timeA - timeB;
     });
-
-    return out;
   }, [leaves, statusFilter, query, sortOrder]);
 
-  // Pie chart data (counts by effectiveStatus)
   const pieData = useMemo(() => {
     const counts = {};
-    for (const l of leaves) {
-      const expired = isExpired(l.toDate);
-      const st = expired && l.status === "Pending" ? "Expired" : l.status || "Other";
+    leaves.forEach(l => {
+      const st = isExpired(l.toDate) && l.status === "Pending" ? "Expired" : l.status || "Other";
       counts[st] = (counts[st] || 0) + 1;
-    }
-    return Object.keys(counts).map((k) => ({ name: k, value: counts[k] }));
+    });
+    return Object.keys(counts).map(k => ({ name: k, value: counts[k] }));
   }, [leaves]);
 
-  // Action handlers
+  /* ================= WORKFLOW ACTIONS ================= */
   const updateStatus = async (id, endpoint, label) => {
     const ok = await Swal.fire({
       title: `Confirm ${label}?`,
-      text: `Are you sure you want to ${label.toLowerCase()} this leave?`,
+      text: `Process this request as ${label.toLowerCase()}?`,
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: label,
+      confirmButtonColor: label === "Reject" ? "#ef4444" : "#4f46e5",
+      confirmButtonText: `Yes, ${label}`
     });
 
     if (!ok.isConfirmed) return;
 
     try {
-      // using manager endpoints you defined: /manager/leaves/:id/verify etc.
       await api.put(`/manager/leaves/${id}/${endpoint}`);
-      Swal.fire("Success", `Leave ${label.toLowerCase()} successfully`, "success");
+      Swal.fire("Processed", `Leave request ${label.toLowerCase()}ed.`, "success");
       fetchLeaves();
     } catch (err) {
-      console.error("updateStatus error", err);
-      Swal.fire("Error", err.response?.data?.msg || "Something went wrong", "error");
+      Swal.fire("Error", err.response?.data?.msg || "Update failed", "error");
     }
   };
 
-  if (loading) return <div className={`p-6 ${pageBg}`}>Loading leaves…</div>;
-  if (error) return <div className={`p-6 ${pageBg} ${isDark ? "text-red-400" : "text-red-600"}`}>Error loading leave requests.</div>;
+  if (loading) return <div className={`p-10 text-center ${pageBg} h-screen`}>Loading Management Portal...</div>;
 
   return (
-    <div className={`p-6 ${pageBg} min-h-full`}>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className={`text-xl font-semibold ${isDark ? "text-gray-100" : "text-gray-900"}`}>Employee Leave Requests</h2>
+    <div className={`p-4 md:p-8 h-full overflow-y-auto transition-colors duration-300 ${pageBg}`}>
+      
+      {/* --- HEADER & FILTERS --- */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight">Request Oversight</h2>
+          <p className="text-sm opacity-60">Audit and process employee leave applications.</p>
+        </div>
 
-        <div className="flex gap-3 items-center">
-          <input
-            type="text"
-            placeholder="Search by name, id, type, reason..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className={`${inputBase} w-72`}
-          />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative group">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40 group-focus-within:text-blue-500 transition-colors" />
+            <input
+              placeholder="Search employee or ID..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className={`${inputBase} sm:w-64 w-55 pl-10 pr-4 py-2 rounded-xl border outline-none transition-all`}
+            />
+          </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={selectBase}
-          >
-            <option value="All">All Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Verified">Verified</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Expired">Expired</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <FiFilter className="opacity-40" />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${inputBase} px-4 py-2 rounded-xl border outline-none`}>
+              <option value="All">All Statuses</option>
+              {["Pending", "Verified", "Approved", "Rejected", "Expired"].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
 
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            className={selectBase}
-          >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </select>
-
-          <button
-            onClick={() => { setQuery(""); setStatusFilter("All"); fetchLeaves(); }}
-            className={btnReset}
-          >
-            Reset
+          <button onClick={fetchLeaves} className="p-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all active:scale-95">
+            <FiRefreshCw className={loading ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: table (spans 2 columns on large screens) */}
-        <div className={`lg:col-span-2 ${panelBg} rounded shadow p-4`}>
-          <div className="mb-3 flex items-center justify-between">
-            <div className={`text-sm ${isDark ? "text-gray-300" : "text-gray-600"}`}>Showing {filtered.length} results</div>
-            <div className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>Refresh to get latest</div>
-          </div>
-
-          <div className="overflow-auto max-h-[68vh]">
-            <table className="w-full text-sm border-collapse">
-              <thead className={`${tableHeadBg} sticky top-0`}>
-                <tr>
-                  <th className="p-2 text-left">Name</th>
-                  <th className="p-2 text-left">Employee ID</th>
-                  <th className="p-2 text-left">Type</th>
-                  <th className="p-2 text-left">From</th>
-                  <th className="p-2 text-left">To</th>
-                  <th className="p-2 text-left">Status</th>
-                  <th className="p-2 text-left">Action</th>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        {/* --- MAIN LISTING --- */}
+        <div className={`lg:col-span-3 ${cardBg} rounded-3xl overflow-hidden border transition-all`}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className={`${isDark ? "bg-slate-700/50" : "bg-slate-50"} text-[10px] font-black uppercase tracking-widest opacity-60`}>
+                  <th className="p-5">Employee</th>
+                  <th className="p-5">Type</th>
+                  <th className="p-5">Duration</th>
+                  <th className="p-5">Status</th>
+                  <th className="p-5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className={`p-4 text-center ${emptyText}`}>
-                      No leave requests found.
+              <tbody className={`divide-y ${isDark ? "divide-slate-700" : "divide-gray-100"}`}>
+                {filtered.map((l) => (
+                  <tr key={l._id} className="hover:bg-blue-500/5 transition-colors group">
+                    <td className="p-5">
+                      <div className="font-bold">{l.name}</div>
+                      <div className="text-[10px] opacity-50 font-mono">{l.employeeId}</div>
                     </td>
-                  </tr>
-                )}
-
-                {filtered.map((l) => {
-                  const expired = isExpired(l.toDate);
-                  const statusForBadge = expired && l.status === "Pending" ? "Expired" : l.status || "Other";
-
-                  const badgeClassMap = isDark ? badgeMapDark : badgeMapLight;
-
-                  return (
-                    <tr key={l._id} className={`border-b ${rowHover}`}>
-                      <td className="p-2">{l.name}</td>
-                      <td className="p-2">{l.employeeId}</td>
-                      <td className="p-2">{l.leaveType}</td>
-                      <td className="p-2">{l.fromDate}</td>
-                      <td className="p-2">{l.toDate}</td>
-                      <td className="p-2">
-                        <span className={`px-2 py-1 text-xs rounded ${badgeClassMap[statusForBadge] || (isDark ? "bg-slate-700 text-slate-100" : "bg-gray-100 text-gray-700")}`}>
-                          {statusForBadge}
-                        </span>
-                      </td>
-
-                      <td className="p-2 flex gap-2">
-                        <button
-                          className={btnPrimary}
-                          onClick={() => setSelected(l)}
-                        >
-                          Details
+                    <td className="p-5 font-medium">{l.leaveType}</td>
+                    <td className="p-5">
+                      <div className="flex items-center gap-1 opacity-80">
+                        <span className="font-bold">{l.fromDate}</span>
+                        <span className="opacity-40 text-xs">→</span>
+                        <span className="font-bold">{l.toDate}</span>
+                      </div>
+                    </td>
+                    <td className="p-5">
+                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${badgeMap[l.effectiveStatus] || "bg-gray-100"}`}>
+                        {l.effectiveStatus}
+                      </span>
+                    </td>
+                    <td className="p-5">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => setSelected(l)} className="p-2 rounded-lg hover:bg-blue-500/10 text-blue-500 transition-colors" title="View Reason">
+                          <FiInfo size={18} />
                         </button>
-
-                        {/* VERIFY button only available when Pending and not expired */}
-                        {l.status === "Pending" && !expired && (
-                          <button
-                            className={isDark ? "px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-400" : "px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"}
-                            onClick={() => updateStatus(l._id, "verify", "Verify")}
-                          >
-                            Verify
-                          </button>
+                        
+                        {l.status === "Pending" && !l.expired && (
+                          <button onClick={() => updateStatus(l._id, "verify", "Verify")} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-md shadow-blue-500/20">Verify</button>
                         )}
 
-                        {/* APPROVE/REJECT only after verification */}
                         {l.status === "Verified" && (
                           <>
-                            <button
-                              className={isDark ? "px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-400" : "px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"}
-                              onClick={() => updateStatus(l._id, "approve", "Approve")}
-                            >
-                              Approve
-                            </button>
-
-                            <button
-                              className={isDark ? "px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-400" : "px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"}
-                              onClick={() => updateStatus(l._id, "reject", "Reject")}
-                            >
-                              Reject
-                            </button>
+                            <button onClick={() => updateStatus(l._id, "approve", "Approve")} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-500/20">Approve</button>
+                            <button onClick={() => updateStatus(l._id, "reject", "Reject")} className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold shadow-md shadow-rose-500/20">Reject</button>
                           </>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+            {filtered.length === 0 && <div className="p-20 text-center opacity-40 italic">No matching requests found.</div>}
           </div>
         </div>
 
-        {/* Right: Analytics */}
-        <div className={`${analyticsCard} rounded shadow p-4`}>
-          <h3 className="font-semibold mb-3">Analytics</h3>
+        {/* --- ANALYTICS SIDEBAR --- */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className={`${cardBg} p-6 rounded-3xl border`}>
+            <h3 className="font-black text-xs uppercase tracking-widest opacity-60 mb-6 flex items-center gap-2">
+               <FiClock className="text-blue-500" /> Data Overview
+            </h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5}>
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || STATUS_COLORS.Other} stroke="none" />
+                    ))}
+                  </Pie>
+                  <ReTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
 
-          <div style={{ width: "100%", height: 240 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label={(entry) => `${entry.name} (${entry.value})`}
-                >
-                  {pieData.map((entry) => (
-                    <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || STATUS_COLORS.Other} />
-                  ))}
-                </Pie>
-                <ReTooltip wrapperStyle={{ backgroundColor: isDark ? "#0b1220" : "#fff", color: isDark ? "#e2e8f0" : "#0f172a" }} />
-                <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: isDark ? "#e2e8f0" : "#0f172a" }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="mt-4 space-y-2 text-sm">
-            <div className="font-medium">Status summary</div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="mt-6 space-y-3">
               {pieData.map((p) => (
-                <div key={p.name} className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded" style={{ background: STATUS_COLORS[p.name] || STATUS_COLORS.Other }}></span>
-                  <div>
-                    <div className="text-sm">{p.name}</div>
-                    <div className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>{p.value} request(s)</div>
+                <div key={p.name} className="flex items-center justify-between p-3 rounded-2xl bg-slate-500/5 border border-slate-500/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full" style={{ background: STATUS_COLORS[p.name] }} />
+                    <span className="text-xs font-bold opacity-80">{p.name}</span>
                   </div>
+                  <span className="text-sm font-black">{p.value}</span>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="mt-4">
-            <button onClick={() => fetchLeaves()} className={isDark ? "px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500" : "px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"}>
-              Refresh
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* DETAILS MODAL */}
+      {/* --- REASON MODAL --- */}
       {selected && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className={`${modalBg} rounded-lg p-6 max-w-lg w-full shadow-lg overflow-auto max-h-[80vh]`}>
-            <h3 className="text-lg font-semibold mb-3">Leave Details</h3>
-
-            <div className="space-y-2 text-sm">
-              <div><strong>Name:</strong> {selected.name}</div>
-              <div><strong>Employee ID:</strong> {selected.employeeId}</div>
-              <div><strong>Type:</strong> {selected.leaveType}</div>
-              <div><strong>From:</strong> {selected.fromDate}</div>
-              <div><strong>To:</strong> {selected.toDate}</div>
-              <div><strong>Status:</strong> {selected.status}</div>
-              <div><strong>Reason:</strong></div>
-              <p className={isDark ? "text-gray-200 bg-slate-700 p-2 rounded whitespace-pre-wrap" : "text-gray-800 bg-gray-100 p-2 rounded whitespace-pre-wrap"}>{selected.reason}</p>
-              <div className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Applied: {selected.appliedAt ? new Date(selected.appliedAt).toLocaleString() : "—"}</div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`${isDark ? "bg-slate-800" : "bg-white"} rounded-3xl p-8 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-300`}>
+            <div className="flex justify-between items-start mb-6">
+              <h3 className="text-xl font-black uppercase tracking-tight">Request Details</h3>
+              <button onClick={() => setSelected(null)} className="p-2 rounded-full hover:bg-slate-500/10 opacity-50"><FiXCircle size={24} /></button>
             </div>
 
-            <div className="mt-4 flex justify-end gap-3">
-              <button onClick={() => setSelected(null)} className={isDark ? "px-3 py-1 bg-slate-700 text-gray-200 rounded hover:bg-slate-600" : "px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"}>Close</button>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-[10px] font-black uppercase opacity-40">Employee</label><p className="font-bold">{selected.name}</p></div>
+                <div><label className="text-[10px] font-black uppercase opacity-40">Type</label><p className="font-bold">{selected.leaveType}</p></div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase opacity-40 mb-2 block">Manager's Note / Reason</label>
+                <div className={`p-4 rounded-2xl ${isDark ? "bg-slate-900" : "bg-slate-50"} text-sm leading-relaxed italic border border-inherit`}>
+                  "{selected.reason}"
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4"><button onClick={() => setSelected(null)} className="px-8 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Acknowledged</button></div>
             </div>
           </div>
         </div>

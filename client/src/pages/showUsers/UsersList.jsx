@@ -3,7 +3,8 @@ import React, { useContext, useMemo, useState } from "react";
 import { UserContext } from "../context/UserContext";
 
 export default function UsersList() {
-  const { users, loading, error, refreshUsers, getEmployees } = useContext(UserContext);
+  const { users, loading, error, refreshUsers, getEmployees } =
+    useContext(UserContext);
   const [query, setQuery] = useState("");
   const [showOnlyEmployees, setShowOnlyEmployees] = useState(true);
 
@@ -12,11 +13,17 @@ export default function UsersList() {
     if (showOnlyEmployees) return getEmployees(query || null);
     if (!query) return users;
     const q = query.toLowerCase();
-    return users.filter((u) => (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q) || (u.employeeId || "").toLowerCase().includes(q));
+    return users.filter(
+      (u) =>
+        (u.name || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.employeeId || "").toLowerCase().includes(q)
+    );
   }, [users, showOnlyEmployees, query, getEmployees]);
 
   if (loading) return <div className="p-4">Loading users…</div>;
-  if (error) return <div className="p-4 text-red-600">Error loading users.</div>;
+  if (error)
+    return <div className="p-4 text-red-600">Error loading users.</div>;
 
   return (
     <div className="p-4">
@@ -51,12 +58,28 @@ export default function UsersList() {
           <div className="text-gray-500">No users found.</div>
         ) : (
           displayed.map((u) => (
-            <div key={u._id || u.id || u.email} className="p-3 border rounded flex items-center gap-4">
+            <div
+              key={u._id || u.id || u.email}
+              className="p-3 border rounded flex items-center gap-4"
+            >
               <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                 {u.photo ? (
-                  <img src={u.photo.startsWith("http") ? u.photo : `${process.env.REACT_APP_API_URL || "http://localhost:5000"}/uploads/${u.photo}`} alt={u.name} className="w-full h-full object-cover" />
+                  <img
+                    src={
+                      u.photo.startsWith("http")
+                        ? u.photo
+                        : `${
+                            process.env.REACT_APP_API_URL ||
+                            "http://localhost:5000"
+                          }/uploads/${u.photo}`
+                    }
+                    alt={u.name}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-gray-400">No Photo</div>
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    No Photo
+                  </div>
                 )}
               </div>
 
@@ -69,7 +92,9 @@ export default function UsersList() {
               </div>
 
               <div>
-                <button className="text-sm text-blue-600 hover:underline">View</button>
+                <button className="text-sm text-blue-600 hover:underline">
+                  View
+                </button>
               </div>
             </div>
           ))

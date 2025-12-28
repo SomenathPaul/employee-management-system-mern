@@ -4,13 +4,14 @@ import { useNavigate } from "react-router-dom";
 import PageWrapper from "../../components/PageWrapper";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import { FaRegImage } from "react-icons/fa6";
-import AIButton from "../../components/AIButton";
 import Swal from "sweetalert2";
 import { ThemeContext } from "../../context/ThemeContext";
 import { FaArrowRight } from "react-icons/fa6";
 import { FaArrowLeft } from "react-icons/fa";
+import { Link } from "react-router-dom";
 
 function Register() {
+  // =====================================================================
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -113,6 +114,16 @@ function Register() {
       );
       return false;
     }
+
+    // ================= EMAIL VERIFICATION CHECK (ADDED) =================
+    // if (!emailVerified) {
+    //   Swal.fire(
+    //     "Email Not Verified",
+    //     "Please verify your email before proceeding.",
+    //     "error"
+    //   );
+    //   return false;
+    // }
 
     // Phone validation
     const phoneRegex = /^[0-9]{10}$/;
@@ -293,7 +304,11 @@ function Register() {
       }
     } catch (error) {
       console.error("Registration error:", error);
-      Swal.fire("Registration Error", `Something went wrong. ${error}`, "error");
+      Swal.fire(
+        "Registration Error",
+        `Something went wrong. ${error}`,
+        "error"
+      );
     }
   };
 
@@ -301,21 +316,31 @@ function Register() {
   const inputStyleBase =
     "border-2 border-transparent hover:border-purple-500 focus:border-pink-500 p-2 focus:pl-4 m-2 outline-0 rounded transition-all ease-in-out duration-500";
   const inputLight = "bg-gray-200 text-slate-900";
-  const inputDark = "bg-slate-700 text-slate-100 border-slate-700 placeholder-slate-400";
+  const inputDark =
+    "bg-slate-700 text-slate-100 border-slate-700 placeholder-slate-400";
   const inputStyle = `${inputStyleBase} ${isDark ? inputDark : inputLight}`;
 
   // card / container classes
   const pageBg = isDark ? "bg-slate-900" : "bg-white";
-  const formBg = isDark ? "bg-slate-900 text-slate-100" : "bg-white text-slate-900";
+  const formBg = isDark
+    ? "bg-slate-900 text-slate-100"
+    : "bg-white text-slate-900";
   const leftText = isDark ? "text-white" : "text-white"; // left panel remains white text on gradient
-  const mainContainerBg = isDark ? "bg-slate-800/60 backdrop-blur-md border-slate-700" : "bg-white/70 backdrop-blur-md border-gray-200";
+  const mainContainerBg = isDark
+    ? "bg-slate-800/60 backdrop-blur-md border-slate-700"
+    : "bg-white/70 backdrop-blur-md border-gray-200";
 
   // upload card styles
-  const uploadBase = "flex flex-col w-full md:w-1/2 border-2 border-dashed rounded-xl p-4 justify-center items-center text-center transition cursor-pointer";
+  const uploadBase =
+    "flex flex-col w-full md:w-1/2 border-2 border-dashed rounded-xl p-4 justify-center items-center text-center transition cursor-pointer";
   const uploadLight = (has) =>
-    has ? "border-green-400 bg-green-50 hover:bg-green-100 text-slate-900" : "border-gray-400 hover:bg-gray-100 text-slate-900";
+    has
+      ? "border-green-400 bg-green-50 hover:bg-green-100 text-slate-900"
+      : "border-gray-400 hover:bg-gray-100 text-slate-900";
   const uploadDark = (has) =>
-    has ? "border-green-600 bg-green-900/30 hover:bg-green-900/20 text-slate-100" : "border-slate-700 hover:bg-slate-800 text-slate-100";
+    has
+      ? "border-green-600 bg-green-900/30 hover:bg-green-900/20 text-slate-100"
+      : "border-slate-700 hover:bg-slate-800 text-slate-100";
 
   return (
     <PageWrapper>
@@ -326,33 +351,64 @@ function Register() {
           {/* LEFT (visual) - fixed height on large screens, non-scrollable */}
           <aside className="w-full md:w-1/2 h-auto md:h-screen sticky top-0 flex-shrink-0 bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center p-8 md:p-12">
             <div className="max-w-md text-center">
-              <h1 className="text-4xl md:text-5xl font-bold mb-4" style={{ color: leftText === "text-white" ? "white" : undefined }}>Register Here</h1>
+              <h1
+                className="text-4xl md:text-5xl font-bold mb-4"
+                style={{
+                  color: leftText === "text-white" ? "white" : undefined,
+                }}
+              >
+                Register Here
+              </h1>
               <p className="text-base md:text-lg text-white/90 mb-4">
                 Create your account to get started with our Employee Management
                 System. Fill in your details carefully to help HR onboard you
                 smoothly.
               </p>
               <p className="text-base md:text-lg text-white/90 border-t pt-3">
-                <a href="/login" className="hover:underline">Login</a> to your existing account.
+                <a href="/login" className="hover:underline">
+                  Login
+                </a>{" "}
+                to your existing account.
               </p>
             </div>
           </aside>
 
           {/* RIGHT (form) - scrollable only */}
           <main className="w-full md:w-1/2 h-screen overflow-y-auto">
-            <div className={`w-full md:max-w-xl mx-auto p-6 md:p-8 ${isDark ? "bg-slate-900 text-slate-100" : "bg-white text-slate-900"}`}>
-              <h2 className="text-2xl font-semibold mb-2 text-center">Create your Account</h2>
+            <div
+              className={`w-full md:max-w-xl mx-auto p-6 md:p-8 ${
+                isDark
+                  ? "bg-slate-900 text-slate-100"
+                  : "bg-white text-slate-900"
+              }`}
+            >
+              <h2 className="text-2xl font-semibold mb-2 text-center">
+                Create your Account
+              </h2>
               <p className="text-[13px] mb-4 text-center">
                 Already have an account?{" "}
-                <a href="/login" className={isDark ? "text-indigo-300 underline" : "text-blue-700 underline"}>
+                <Link
+                  to="/login"
+                  className={
+                    isDark
+                      ? "text-indigo-300 underline"
+                      : "text-blue-700 underline"
+                  }
+                >
                   Login
-                </a>
+                </Link>
               </p>
-              <p className="text-[13px] mb-6 text-center" style={{ color: isDark ? "#cbd5e1" : undefined }}>
+              <p
+                className="text-[13px] mb-6 text-center"
+                style={{ color: isDark ? "#cbd5e1" : undefined }}
+              >
                 Step {step} of 3
               </p>
 
-              <form onSubmit={handleSubmit} className="flex flex-col w-full transition-all duration-500">
+              <form
+                onSubmit={handleSubmit}
+                className="flex flex-col w-full transition-all duration-500"
+              >
                 {/* STEP 1 */}
                 {step === 1 && (
                   <>
@@ -376,11 +432,19 @@ function Register() {
                       <option value="Other">Other</option>
                     </select>
 
-                    <label className={`m-2 font-medium text-sm ${isDark ? "text-slate-200" : "text-gray-700"}`}>Date of Birth</label>
+                    <label
+                      className={`m-2 font-medium text-sm ${
+                        isDark ? "text-slate-200" : "text-gray-700"
+                      }`}
+                    >
+                      Date of Birth
+                    </label>
                     <input
                       type="date"
                       name="dob"
-                      className={`${inputStyle} text-black hide-date-icon ${isDark ? "text-slate-100" : ""}`}
+                      className={`${inputStyle} text-black hide-date-icon ${
+                        isDark ? "text-slate-100" : ""
+                      }`}
                       onChange={handleChange}
                       value={formData.dob}
                     />
@@ -393,6 +457,7 @@ function Register() {
                       onChange={handleChange}
                       value={formData.email}
                     />
+
                     <input
                       type="text"
                       name="phone"
@@ -408,7 +473,7 @@ function Register() {
                       onChange={handleChange}
                       value={formData.address}
                     />
-                    <AIButton name="Address" />
+                    {/* <AIButton name="Address" /> */}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
@@ -470,7 +535,9 @@ function Register() {
                     <div className="flex justify-end mt-4">
                       <button
                         type="button"
-                        onClick={() => { if (validateStep1()) nextStep(); }}
+                        onClick={() => {
+                          if (validateStep1()) nextStep();
+                        }}
                         className="flex items-center justify-center gap-3 bg-black text-white p-3 cursor-pointer rounded hover:bg-gray-800 transition"
                       >
                         Next <FaArrowRight />
@@ -511,8 +578,12 @@ function Register() {
                       value={formData.department}
                     >
                       <option value="">Select Department</option>
-                      <option value="Software Development">Software Development</option>
-                      <option value="Quality Assurance">Quality Assurance</option>
+                      <option value="Software Development">
+                        Software Development
+                      </option>
+                      <option value="Quality Assurance">
+                        Quality Assurance
+                      </option>
                       <option value="UI/UX Design">UI/UX Design</option>
                       <option value="DevOps">DevOps</option>
                       <option value="Data Science">Data Science</option>
@@ -533,7 +604,13 @@ function Register() {
                       <option value="Intern">Intern</option>
                     </select>
 
-                    <label className={`m-2 font-medium text-sm ${isDark ? "text-slate-200" : "text-gray-700"}`}>Date of Joining</label>
+                    <label
+                      className={`m-2 font-medium text-sm ${
+                        isDark ? "text-slate-200" : "text-gray-700"
+                      }`}
+                    >
+                      Date of Joining
+                    </label>
                     <input
                       type="date"
                       name="joiningDate"
@@ -590,11 +667,13 @@ function Register() {
                         onClick={prevStep}
                         className="flex items-center gap-3 justify-center bg-gray-300 text-black w-1/2 p-3 rounded hover:bg-gray-400 transition"
                       >
-                        <FaArrowLeft /> Back 
+                        <FaArrowLeft /> Back
                       </button>
                       <button
                         type="button"
-                        onClick={() => { if (validateStep2()) nextStep(); }}
+                        onClick={() => {
+                          if (validateStep2()) nextStep();
+                        }}
                         className="flex items-center justify-center gap-3 bg-black text-white w-1/2 p-3 cursor-pointer rounded hover:bg-gray-800 transition"
                       >
                         Next <FaArrowRight />
@@ -609,7 +688,11 @@ function Register() {
                     <div className="flex flex-col md:flex-row gap-4 m-2">
                       {/* PHOTO UPLOAD */}
                       <div
-                        className={`${uploadBase} ${isDark ? uploadDark(!!formData.photo) : uploadLight(!!formData.photo)}`}
+                        className={`${uploadBase} ${
+                          isDark
+                            ? uploadDark(!!formData.photo)
+                            : uploadLight(!!formData.photo)
+                        }`}
                       >
                         {formData.photo ? (
                           <img
@@ -618,11 +701,24 @@ function Register() {
                             className="w-24 h-24 object-cover rounded-lg mb-2"
                           />
                         ) : (
-                          <FaRegImage size={40} className="text-gray-500 mb-2" />
+                          <FaRegImage
+                            size={40}
+                            className="text-gray-500 mb-2"
+                          />
                         )}
 
-                        <p className={`text-sm ${formData.photo ? "text-green-600" : isDark ? "text-slate-300" : "text-gray-600"}`}>
-                          {formData.photo ? "✅ Photo uploaded successfully!" : "Upload a file or drag and drop PNG, JPG (max 1 MB)"}
+                        <p
+                          className={`text-sm ${
+                            formData.photo
+                              ? "text-green-600"
+                              : isDark
+                              ? "text-slate-300"
+                              : "text-gray-600"
+                          }`}
+                        >
+                          {formData.photo
+                            ? "✅ Photo uploaded successfully!"
+                            : "Upload a file or drag and drop PNG, JPG (max 1 MB)"}
                         </p>
 
                         <input
@@ -633,12 +729,20 @@ function Register() {
                           className="mt-2 text-xs text-blue-700 font-bold cursor-pointer"
                         />
 
-                        {formData.photo && <p className="text-xs text-gray-600 mt-1">📁 {formData.photo.name}</p>}
+                        {formData.photo && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            📁 {formData.photo.name}
+                          </p>
+                        )}
                       </div>
 
                       {/* SIGNATURE UPLOAD */}
                       <div
-                        className={`${uploadBase} ${isDark ? uploadDark(!!formData.signature) : uploadLight(!!formData.signature)}`}
+                        className={`${uploadBase} ${
+                          isDark
+                            ? uploadDark(!!formData.signature)
+                            : uploadLight(!!formData.signature)
+                        }`}
                       >
                         {formData.signature ? (
                           <img
@@ -647,11 +751,24 @@ function Register() {
                             className="w-24 h-16 object-contain rounded-lg mb-2"
                           />
                         ) : (
-                          <FaRegImage size={40} className="text-gray-500 mb-2" />
+                          <FaRegImage
+                            size={40}
+                            className="text-gray-500 mb-2"
+                          />
                         )}
 
-                        <p className={`text-sm ${formData.signature ? "text-green-600" : isDark ? "text-slate-300" : "text-gray-600"}`}>
-                          {formData.signature ? "✅ Signature uploaded successfully!" : "Upload a file or drag and drop PNG, JPG (max 1 MB)"}
+                        <p
+                          className={`text-sm ${
+                            formData.signature
+                              ? "text-green-600"
+                              : isDark
+                              ? "text-slate-300"
+                              : "text-gray-600"
+                          }`}
+                        >
+                          {formData.signature
+                            ? "✅ Signature uploaded successfully!"
+                            : "Upload a file or drag and drop PNG, JPG (max 1 MB)"}
                         </p>
 
                         <input
@@ -662,7 +779,11 @@ function Register() {
                           className="mt-2 text-xs text-blue-700 font-bold cursor-pointer"
                         />
 
-                        {formData.signature && <p className="text-xs text-gray-600 mt-1">📁 {formData.signature.name}</p>}
+                        {formData.signature && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            📁 {formData.signature.name}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -671,18 +792,28 @@ function Register() {
                         type={showPassword ? "text" : "password"}
                         name="password"
                         placeholder="Create Password"
-                        className={`border-2 border-transparent p-2 w-full outline-0 pr-10 hover:border-purple-500 focus:border-pink-500 rounded ${isDark ? "bg-slate-700 text-slate-100" : "bg-gray-200 text-slate-900"} focus:pl-4 transition-all ease-in-out duration-500`}
+                        className={`border-2 border-transparent p-2 w-full outline-0 pr-10 hover:border-purple-500 focus:border-pink-500 rounded ${
+                          isDark
+                            ? "bg-slate-700 text-slate-100"
+                            : "bg-gray-200 text-slate-900"
+                        } focus:pl-4 transition-all ease-in-out duration-500`}
                         onChange={handleChange}
                         value={formData.password}
                         required
                       />
                       <button
                         type="button"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-black transition"
                         onClick={() => setShowPassword(!showPassword)}
                       >
-                        {showPassword ? <FaRegEyeSlash size={20} /> : <FaRegEye size={20} />}
+                        {showPassword ? (
+                          <FaRegEyeSlash size={20} />
+                        ) : (
+                          <FaRegEye size={20} />
+                        )}
                       </button>
                     </div>
 
@@ -702,9 +833,15 @@ function Register() {
                       value={formData.securityQuestion}
                     >
                       <option value="">Select Security Question</option>
-                      <option value="Your first pet's name?">Your first pet's name?</option>
-                      <option value="Your mother's maiden name?">Your mother's maiden name?</option>
-                      <option value="Your favorite teacher's name?">Your favorite teacher's name?</option>
+                      <option value="Your first pet's name?">
+                        Your first pet's name?
+                      </option>
+                      <option value="Your mother's maiden name?">
+                        Your mother's maiden name?
+                      </option>
+                      <option value="Your favorite teacher's name?">
+                        Your favorite teacher's name?
+                      </option>
                       <option value="Your birth city?">Your birth city?</option>
                     </select>
 
@@ -725,7 +862,9 @@ function Register() {
                         onChange={handleChange}
                         className="mr-2 mt-1"
                       />
-                      <label className={`text-sm ${isDark ? "text-slate-200" : ""}`}>
+                      <label
+                        className={`text-sm ${isDark ? "text-slate-200" : ""}`}
+                      >
                         I agree to the{" "}
                         <span className="text-blue-700 underline cursor-pointer">
                           Terms and Conditions

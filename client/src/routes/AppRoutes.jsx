@@ -1,25 +1,42 @@
 // client/src/routes/AppRoutes.jsx
-import React, { useContext } from "react";
-import { Routes, Route, NavLink } from "react-router-dom";
 
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+
+/* =======================
+   🌍 PUBLIC PAGES
+   Accessible without login
+======================= */
 import LandingPage from "../pages/landing-page/LandingPage";
 import Register from "../pages/register/Register";
 import Login from "../pages/login/Login";
+import Unauthorized from "../components/Unauthorized";
 
-// Import Role-based Routes
+/* =======================
+   🔐 ROUTE PROTECTION
+   Handles role-based access
+======================= */
+import ProtectedRoute from "./ProtectedRoute";
+
+/* =======================
+   👷 EMPLOYEE MODULE
+======================= */
 import EmpDashboard from "../user-pages/employee/dashboard/EmpDashboard";
 import EmpProfile from "../user-pages/employee/profile/EmpProfile";
-import EmpAttendance from "../user-pages/employee/attendance/EmpAttendance";
+import EmpProgress from "../user-pages/employee/progress/EmpProgress";
 import EmpLeave from "../user-pages/employee/leave/EmpLeave";
 import EmpTask from "../user-pages/employee/tasks/EmpTask";
 import EmpMessages from "../user-pages/employee/messages/EmpMessages";
 import EmpSettings from "../user-pages/employee/settings/EmpSettings";
 import EmpNotifications from "../user-pages/employee/notifications/EmpNotifications";
 import EmpLogout from "../user-pages/employee/EmpLogout";
-// import ManagerRoutes from "./ManagerRoutes";
+
+/* =======================
+   👨‍💼 MANAGER MODULE
+======================= */
 import ManagerDashboard from "../user-pages/manager/dashboard/ManagerDashboard";
 import ManagerProfile from "../user-pages/manager/profile/ManagerProfile";
-import ManagerAttendance from "../user-pages/manager/attendance/ManagerAttendance";
+import ManagerAnalytics from "../user-pages/manager/analytics/ManagerAnalytics";
 import ManagerLeave from "../user-pages/manager/leave-requests/ManagerLeaveStatus";
 import ManagerTask from "../user-pages/manager/tasks/ManagerTask";
 import EditTaskPage from "../user-pages/manager/tasks/EditTaskPage";
@@ -28,22 +45,30 @@ import ManagerSettings from "../user-pages/manager/settings/ManagerSettings";
 import ManagerNotifications from "../user-pages/manager/notifications/ManagerNotifications";
 import ManagerLogout from "../user-pages/manager/ManagerLogout";
 
-import ProtectedRoute from "./ProtectedRoute";
-import Unauthorized from "../components/Unauthorized";
-
+/* =======================
+   👥 EMPLOYEE DATA (Manager View)
+======================= */
 import EmpData from "../user-pages/manager/employee_profiles/EmpData";
 import EmployeeDetailPage from "../user-pages/manager/employee_profiles/EmployeeDetailPage";
 
 function AppRoutes() {
   return (
     <Routes>
-      {/* 🌍 Public Routes */}
+
+      {/* ======================================================
+         🌍 PUBLIC ROUTES (No authentication required)
+      ====================================================== */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
-      {/* 👷 Employee Routes */}
+      {/* ======================================================
+         👷 EMPLOYEE ROUTES
+         Accessible only if role === "Employee"
+      ====================================================== */}
+
+      {/* 📊 Dashboard */}
       <Route
         path="/employee/dashboard"
         element={
@@ -52,6 +77,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* 👤 Profile */}
       <Route
         path="/employee/profile"
         element={
@@ -60,14 +87,18 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* 📈 Progress */}
       <Route
-        path="/employee/attendance"
+        path="/employee/progress"
         element={
           <ProtectedRoute allowedRoles={["Employee"]}>
-            <EmpAttendance />
+            <EmpProgress />
           </ProtectedRoute>
         }
       />
+
+      {/* 📝 Leave Requests */}
       <Route
         path="/employee/leave-requests"
         element={
@@ -76,6 +107,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* 📌 Task Management */}
       <Route
         path="/employee/tasks"
         element={
@@ -84,6 +117,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* 💬 Messages */}
       <Route
         path="/employee/messages"
         element={
@@ -92,6 +127,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* ⚙️ Settings */}
       <Route
         path="/employee/settings"
         element={
@@ -100,6 +137,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* 🔔 Notifications */}
       <Route
         path="/employee/notifications"
         element={
@@ -108,6 +147,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* 🚪 Logout */}
       <Route
         path="/employee/logout"
         element={
@@ -117,8 +158,12 @@ function AppRoutes() {
         }
       />
 
-      {/* 👨‍💼 Manager Routes */}
-      {/* ✅ Employees Profile */}
+      {/* ======================================================
+         👨‍💼 MANAGER ROUTES
+         Accessible only if role === "Manager"
+      ====================================================== */}
+
+      {/* 📋 Employee List */}
       <Route
         path="/manager/employee-profiles"
         element={
@@ -127,7 +172,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      {/* Manager: Employee detail */}
+
+      {/* 🔍 Employee Details */}
       <Route
         path="/manager/employee-profiles/:id"
         element={
@@ -137,17 +183,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Manager: Employee list */}
-      <Route
-        path="/manager/employee-profiles"
-        element={
-          <ProtectedRoute allowedRoles={["Manager"]}>
-            <EmpData />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* ✅ Dashboard */}
+      {/* 📊 Dashboard */}
       <Route
         path="/manager/dashboard"
         element={
@@ -157,7 +193,7 @@ function AppRoutes() {
         }
       />
 
-      {/* ✅ Profile */}
+      {/* 👤 Profile */}
       <Route
         path="/manager/profile"
         element={
@@ -167,17 +203,17 @@ function AppRoutes() {
         }
       />
 
-      {/* ✅ Attendance */}
+      {/* 📈 Analytics */}
       <Route
-        path="/manager/employee-attendance-status"
+        path="/manager/employee-analytics-status"
         element={
           <ProtectedRoute allowedRoles={["Manager"]}>
-            <ManagerAttendance />
+            <ManagerAnalytics />
           </ProtectedRoute>
         }
       />
 
-      {/* ✅ Leave */}
+      {/* 📝 Leave Management */}
       <Route
         path="/manager/employee-leave-requests"
         element={
@@ -187,7 +223,7 @@ function AppRoutes() {
         }
       />
 
-      {/* ✅ Tasks */}
+      {/* 📌 Task Management */}
       <Route
         path="/manager/tasks"
         element={
@@ -197,16 +233,17 @@ function AppRoutes() {
         }
       />
 
+      {/* ✏️ Edit Task (Extended Roles) */}
       <Route
-  path="/manager/tasks/:id/edit"
-  element={
-    <ProtectedRoute allowedRoles={["Manager","HR","Admin"]}>
-      <EditTaskPage />
-    </ProtectedRoute>
-  }
-/>
+        path="/manager/tasks/:id/edit"
+        element={
+          <ProtectedRoute allowedRoles={["Manager", "HR", "Admin"]}>
+            <EditTaskPage />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* ✅ Messages */}
+      {/* 💬 Messages */}
       <Route
         path="/manager/messages"
         element={
@@ -216,7 +253,7 @@ function AppRoutes() {
         }
       />
 
-      {/* ✅ Notifications */}
+      {/* 🔔 Notifications */}
       <Route
         path="/manager/notifications"
         element={
@@ -226,7 +263,7 @@ function AppRoutes() {
         }
       />
 
-      {/* ✅ Settings */}
+      {/* ⚙️ Settings */}
       <Route
         path="/manager/settings"
         element={
@@ -236,7 +273,7 @@ function AppRoutes() {
         }
       />
 
-      {/* ✅ Logout */}
+      {/* 🚪 Logout */}
       <Route
         path="/manager/logout"
         element={
@@ -245,6 +282,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
     </Routes>
   );
 }

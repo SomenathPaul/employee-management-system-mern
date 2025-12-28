@@ -1,7 +1,7 @@
 // client/src/user-pages/employee/messages/EmpMessages.jsx
 import React from "react";
 import EmpDashboardLayout from "../EmpDashboardLayout";
-import MessagesTab from "./MessagesTab";
+import MessagesTab from "../../../components/messages/MessagesTab";
 
 function EmpMessages() {
   return (

@@ -10,13 +10,16 @@ import {
 } from "recharts";
 import { ThemeContext } from "../../../context/ThemeContext";
 
-// Status colors (same meaning as main page)
+/**
+ * Global Status Color Configuration
+ * Maps database statuses to semantic dashboard colors.
+ */
 const STATUS_COLORS = {
-  Pending: "#f59e0b",
-  Approved: "#16a34a",
-  Rejected: "#ef4444",
-  Expired: "#9ca3af",
-  Other: "#6b7280",
+  Pending: "#f59e0b",   // Amber
+  Approved: "#16a34a",  // Emerald
+  Rejected: "#ef4444",  // Rose
+  Expired: "#9ca3af",   // Gray/Slate
+  Verified: "#00AEFF",     // Neutral
 };
 
 export default function DashboardLeaveWidget() {
@@ -26,28 +29,25 @@ export default function DashboardLeaveWidget() {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ---------- FETCH (SHORT DATASET) ----------
+  /* ================= FETCH DATA ================= */
   useEffect(() => {
     let cancelled = false;
 
     async function fetchLeaves() {
       try {
         setLoading(true);
-
+        // Attempt to hit the primary manager endpoint with a fallback
         let res;
         try {
-          res = await api.get("/manager/getLeaves");
+          res = await api.get("/manager/leaves/getLeaves");
         } catch {
           res = await api.get("/manager/leaves");
         }
 
-        const data = Array.isArray(res.data)
-          ? res.data
-          : res.data.data || [];
-
+        const data = Array.isArray(res.data) ? res.data : res.data.data || [];
         if (!cancelled) setLeaves(data);
       } catch (err) {
-        console.error("dashboard leave fetch error", err);
+        console.error("Dashboard leave fetch error:", err);
         if (!cancelled) setLeaves([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -58,7 +58,10 @@ export default function DashboardLeaveWidget() {
     return () => (cancelled = true);
   }, []);
 
-  // ---------- HELPERS ----------
+  /* ================= HELPERS ================= */
+  /**
+   * Logic to determine if a leave request is past its intended 'To Date'
+   */
   const isExpired = (toDate) => {
     if (!toDate) return false;
     const today = new Date();
@@ -66,17 +69,13 @@ export default function DashboardLeaveWidget() {
     return t.setHours(0, 0, 0, 0) < today.setHours(0, 0, 0, 0);
   };
 
-  // ---------- PIE DATA ----------
+  /* ================= DATA PROCESSING ================= */
+  // Transform flat array into aggregated counts for the Pie Chart
   const pieData = useMemo(() => {
     const map = {};
-
     leaves.forEach((l) => {
       const expired = isExpired(l.toDate);
-      const status =
-        expired && l.status === "Pending"
-          ? "Expired"
-          : l.status || "Other";
-
+      const status = expired && l.status === "Pending" ? "Expired" : l.status || "Other";
       map[status] = (map[status] || 0) + 1;
     });
 
@@ -86,98 +85,115 @@ export default function DashboardLeaveWidget() {
     }));
   }, [leaves]);
 
-  // ---------- RECENT LEAVES ----------
+  // Sort and limit to most recent applications
   const recentLeaves = useMemo(() => {
     return [...leaves]
-      .sort(
-        (a, b) =>
-          new Date(b.appliedAt || b.createdAt || 0) -
-          new Date(a.appliedAt || a.createdAt || 0)
-      )
-      .slice(0, 5);
+      .sort((a, b) => new Date(b.appliedAt || b.createdAt || 0) - new Date(a.appliedAt || a.createdAt || 0))
+      .slice(0, 4); // Limited to 4 for a compact widget feel
   }, [leaves]);
 
-  const cardBg = isDark ? "bg-slate-800 text-gray-200" : "bg-white text-gray-900";
-  const muted = isDark ? "text-gray-400" : "text-gray-500";
+  // --- Dynamic Theme Styles ---
+  const cardBg = isDark ? "bg-slate-800/50 backdrop-blur-md border border-slate-700 text-slate-100" : "bg-white border border-gray-100 text-slate-900 shadow-sm";
+  const itemBg = isDark ? "bg-slate-700/40 hover:bg-slate-700/60" : "bg-gray-50 hover:bg-white";
+  const mutedText = isDark ? "text-slate-400" : "text-gray-500";
 
   return (
-    <div className={`p-4 rounded shadow ${cardBg}`}>
+    <div className={`p-5 rounded-2xl transition-all duration-300 ${cardBg}`}>
+      
       {/* HEADER */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold">Leave Requests</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wider opacity-80">Team Leaves</h3>
+          <p className="text-[10px] opacity-60">Status distribution & recents</p>
+        </div>
         <button
           onClick={() => navigate("/manager/employee-leave-requests")}
-          className="text-xs text-blue-600 hover:underline"
+          className="text-[10px] font-bold uppercase bg-blue-500/10 text-blue-500 px-2 py-1 rounded hover:bg-blue-500/20 transition-colors"
         >
-          View all
+          Details
         </button>
       </div>
 
-      {/* PIE CHART */}
-      <div className="h-40 mb-3">
-        {pieData.length === 0 ? (
-          <div className={`text-sm ${muted}`}>No leave data</div>
+      {/* PIE CHART SECTION */}
+      <div className="h-44 relative flex items-center justify-center">
+        {pieData.length === 0 && !loading ? (
+          <div className={`text-xs italic ${mutedText}`}>No data recorded</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={pieData}
+                innerRadius={45} // Creates a donut chart look
+                outerRadius={65}
+                paddingAngle={5}
                 dataKey="value"
-                nameKey="name"
-                outerRadius={60}
+                stroke="none"
               >
-                {pieData.map((e) => (
-                  <Cell
-                    key={e.name}
-                    fill={STATUS_COLORS[e.name] || STATUS_COLORS.Other}
+                {pieData.map((entry) => (
+                  <Cell 
+                    key={entry.name} 
+                    fill={STATUS_COLORS[entry.name] || STATUS_COLORS.Other} 
                   />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip 
+                contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '10px', fontWeight: 'bold' }}
+              />
             </PieChart>
           </ResponsiveContainer>
         )}
+        {/* Center label for Donut */}
+        <div className="absolute flex flex-col items-center">
+          <span className="text-lg font-black">{leaves.length}</span>
+          <span className="text-[8px] uppercase opacity-40 font-bold">Total</span>
+        </div>
       </div>
 
-      {/* RECENT LIST */}
-      {loading ? (
-        <div className={`text-sm ${muted}`}>Loading leaves…</div>
-      ) : recentLeaves.length === 0 ? (
-        <div className={`text-sm ${muted}`}>No recent requests</div>
-      ) : (
-        <div className="space-y-2">
-          {recentLeaves.map((l) => {
+      {/* MINI LEGEND */}
+      <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mb-4">
+        {pieData.map(d => (
+          <div key={d.name} className="flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_COLORS[d.name] }} />
+            <span className="text-[9px] font-medium opacity-70">{d.name}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* RECENT REQUESTS LIST */}
+      <div className="space-y-1.5">
+        <h4 className={`text-[10px] font-bold uppercase mb-2 ${mutedText}`}>Recent Activity</h4>
+        {loading ? (
+          <div className="animate-pulse space-y-2">
+            {[1, 2].map(i => <div key={i} className="h-8 bg-slate-700/20 rounded" />)}
+          </div>
+        ) : recentLeaves.length === 0 ? (
+          <p className={`text-[10px] italic ${mutedText}`}>No recent requests</p>
+        ) : (
+          recentLeaves.map((l) => {
             const expired = isExpired(l.toDate);
-            const status =
-              expired && l.status === "Pending"
-                ? "Expired"
-                : l.status || "Other";
+            const status = expired && l.status === "Pending" ? "Expired" : l.status || "Other";
 
             return (
               <div
                 key={l._id}
-                className={`flex items-center justify-between text-xs p-2 rounded ${
-                  isDark ? "bg-slate-700/50" : "bg-gray-50"
-                }`}
+                className={`flex items-center justify-between p-2 rounded-xl transition-colors border border-transparent ${itemBg} ${isDark ? 'hover:border-slate-600' : 'hover:border-gray-200'}`}
               >
-                <div className="truncate">
-                  {l.name} • {l.leaveType}
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-[11px] font-bold truncate">{l.name}</p>
+                  <p className={`text-[9px] truncate ${mutedText}`}>{l.leaveType}</p>
                 </div>
 
-                <span
-                  className="px-2 py-0.5 rounded text-white"
-                  style={{
-                    background:
-                      STATUS_COLORS[status] || STATUS_COLORS.Other,
-                  }}
+                <div 
+                  className="px-2 py-0.5 rounded text-[9px] font-black uppercase text-white shadow-sm"
+                  style={{ background: STATUS_COLORS[status] || STATUS_COLORS.Other }}
                 >
                   {status}
-                </span>
+                </div>
               </div>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
     </div>
   );
 }

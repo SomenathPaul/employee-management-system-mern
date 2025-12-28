@@ -24,7 +24,9 @@ exports.getMyTasks = async (req, res) => {
     };
 
     // tasks where assignedTo contains this user _id
-    filters.$or.push({ assignedTo: userId });
+    // filters.$or.push({ assignedTo: userId });
+    filters.$or.push({ "assignedTo.employeeId": employeeId });
+
 
     // tasks where assignedEmployeeIds contains this user's employeeId (if present)
     if (employeeId) filters.$or.push({ assignedEmployeeIds: employeeId });
@@ -89,42 +91,114 @@ exports.updateTaskProgress = async (req, res) => {
     const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ msg: "Task not found" });
 
-    // fetch current user's employeeId for comparison
     const user = await User.findById(userId).select("employeeId role");
-    const employeeId = user?.employeeId;
-
-    const isAssignedByUserId = (task.assignedTo || []).some((a) => String(a) === String(userId));
-    const isAssignedByEmployeeId = employeeId && (task.assignedEmployeeIds || []).some((e) => String(e) === String(employeeId));
-
-    if (!isAssignedByUserId && !isAssignedByEmployeeId) {
-      return res.status(403).json({ msg: "Not allowed: you are not assigned to this task" });
+    if (!user?.employeeId) {
+      return res.status(400).json({ msg: "Employee ID not found" });
     }
 
-    // validate and set
+    // ✅ CORRECT ASSIGNMENT CHECK
+    const isAssigned = (task.assignedTo || []).some(
+      (a) => a.employeeId === user.employeeId
+    );
+
+    if (!isAssigned) {
+      return res
+        .status(403)
+        .json({ msg: "Not allowed: you are not assigned to this task" });
+    }
+
+    // ✅ UPDATE PROGRESS
     if (typeof progress !== "undefined") {
       const p = Number(progress);
       if (Number.isNaN(p) || p < 0 || p > 100) {
         return res.status(400).json({ msg: "Invalid progress value" });
       }
       task.progress = p;
-      // optionally set status automatically
       if (p === 100) task.status = "Completed";
-      else if (task.status === "Assigned") task.status = "In Progress";
+      else task.status = "In Progress";
     }
 
+    // ✅ UPDATE STATUS (EMPLOYEE SAFE)
     if (typeof status !== "undefined") {
-      // prevent employee from setting invalid status (manager-only statuses can be restricted)
-      const allowed = ["Assigned", "In Progress", "Blocked", "Completed", "Cancelled"];
-      if (!allowed.includes(status)) return res.status(400).json({ msg: "Invalid status" });
-      // employees should not be able to set 'Assigned' back from Completed? you can restrict here if needed
+      const allowed = ["Pending", "In Progress", "Completed"];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({ msg: "Invalid status" });
+      }
+
       task.status = status;
       if (status === "Completed") task.progress = 100;
     }
 
     await task.save();
+
     return res.json({ msg: "Task updated", task });
   } catch (err) {
     console.error("updateTaskProgress error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+
+/**
+ * POST /api/employee/tasks/:id/submit
+ * - employee uploads task file
+ * - marks task as Completed
+ */
+exports.submitTaskByEmployee = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ msg: "Unauthorized" });
+
+    if (!req.file) {
+      return res.status(400).json({ msg: "File is required" });
+    }
+
+    const taskId = req.params.id;
+    const task = await Task.findById(taskId);
+    if (!task) return res.status(404).json({ msg: "Task not found" });
+
+    const user = await User.findById(userId).select("employeeId name");
+    if (!user?.employeeId) {
+      return res.status(400).json({ msg: "Employee ID not found" });
+    }
+
+    // check assignment
+    const isAssigned = (task.assignedTo || []).some(
+      (a) => a.employeeId === user.employeeId
+    );
+
+    if (!isAssigned) {
+      return res.status(403).json({ msg: "Not assigned to this task" });
+    }
+
+    // prevent duplicate submission
+    const alreadySubmitted = task.submissions.some(
+      (s) => s.employeeId === user.employeeId
+    );
+    if (alreadySubmitted) {
+      return res
+        .status(400)
+        .json({ msg: "Task already submitted" });
+    }
+
+    // save submission
+    task.submissions.push({
+      employeeId: user.employeeId,
+      fileName: req.file.filename,
+      filePath: `/task-files/${req.file.filename}`,
+    });
+
+    task.status = "Completed";
+
+    await task.save();
+
+    return res.json({
+      msg: "Task submitted successfully",
+      task,
+    });
+  } catch (err) {
+    console.error("submitTaskByEmployee error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+

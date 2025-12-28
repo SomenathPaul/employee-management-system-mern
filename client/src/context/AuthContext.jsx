@@ -2,6 +2,7 @@
 import React, { createContext, useState, useEffect } from "react";
 
 export const AuthContext = createContext();
+import api from "../utils/api";
 
 /**
  * Backward-compatible AuthProvider.

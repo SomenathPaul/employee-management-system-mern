@@ -1,12 +1,20 @@
-// server/routes/attendanceRoutes.js
 const express = require("express");
 const router = express.Router();
-const { markAttendance, getAttendance } = require("../controllers/attendanceController"); // ✅ fix name
-const authMiddleware = require("../middleware/authMiddleware");
+const Attendance = require("../models/attendance");
+const auth = require("../middleware/authMiddleware");
 
-// route to mark attendance
-router.post("/mark", authMiddleware, markAttendance);
-// route for get attendance data
-router.get("/get", authMiddleware, getAttendance); 
+router.get("/today", auth, async (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const data = await Attendance.findOne({
+    user: req.user.userId,
+    date: today,
+  });
+  res.json(data);
+});
+
+router.get("/me", auth, async (req, res) => {
+  const data = await Attendance.find({ user: req.user.userId }).sort({ date: -1 });
+  res.json(data);
+});
 
 module.exports = router;

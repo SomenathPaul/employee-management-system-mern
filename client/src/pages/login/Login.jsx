@@ -1,10 +1,11 @@
 // src/pages/login/Login.jsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import PageWrapper from "../../components/PageWrapper";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import Swal from "sweetalert2";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -14,14 +15,13 @@ function Login() {
 
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
-  // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -44,13 +44,23 @@ function Login() {
         return;
       }
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      // ✅ SINGLE SOURCE OF TRUTH
+      login(data.token, data.user);
+      // console.log(data.token);
+      
+
       const role = data.user?.role?.toLowerCase();
-      if (role === "manager") navigate("/manager/dashboard");
-      else if (role === "employee") navigate("/employee/dashboard");
 
       Swal.fire("Login Successful!", "Redirecting to your dashboard...", "success");
+
+
+      if (role === "manager") {
+        navigate("/manager/dashboard", { replace: true });
+      } else if (role === "employee") {
+        navigate("/employee/dashboard", { replace: true });
+      } else {
+        navigate("/login", { replace: true });
+      }
     } catch (err) {
       console.error("Login error:", err);
       Swal.fire("Server Error", "Unable to connect to server.", "error");
@@ -135,9 +145,9 @@ function Login() {
             {/* Register redirect */}
             <p className="text-sm text-gray-700 mt-6 text-center">
               Don’t have an account?{" "}
-              <a href="/register" className="text-purple-600 underline">
-                Create one
-              </a>
+              <Link to="/register" className="text-purple-600 underline">
+  Create one
+</Link>
             </p>
           </div>
 

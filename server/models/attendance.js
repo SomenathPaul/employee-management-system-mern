@@ -1,17 +1,37 @@
-// server/models/attendance.js
 const mongoose = require("mongoose");
 
-const attendanceSchema = new mongoose.Schema({
-  employeeId: { type: String, required: true },
-  name: { type: String, required: true },
-  role: { type: String },
-  status: { type: String, enum: ["Present", "Absent"], default: "Absent" },
-  date: { 
-    type: String,
-    required: true,
-    default: () => new Date().toISOString().split("T")[0], // auto YYYY-MM-DD
-  },
-  remarks: { type: String, default: "" },
-});
+const attendanceSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      required: true,
+    },
+    employeeId: String,
+    employeeName: String,
 
-module.exports = mongoose.model("Attendance", attendanceSchema, "attendance");
+    date: {
+      type: String, // YYYY-MM-DD
+      required: true,
+    },
+
+    startTime: Date,
+    endTime: Date,
+
+    totalMs: {
+      type: Number,
+      default: 0,
+    },
+
+    status: {
+      type: String,
+      enum: ["PENDING", "PRESENT", "ABSENT"],
+      default: "PENDING",
+    },
+  },
+  { timestamps: true }
+);
+
+// attendanceSchema.index({ user: 1, date: 1 }, { unique: true });
+
+module.exports = mongoose.model("Attendance", attendanceSchema, "attendances");

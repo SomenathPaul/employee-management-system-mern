@@ -2,78 +2,111 @@
 import React, { useContext } from "react";
 import { NavLink } from "react-router-dom";
 import { ThemeContext } from "../../context/ThemeContext";
+// Icons add a professional touch and help with quick recognition
+import { FiUser, FiCalendar, FiCheckSquare, FiClock, FiChevronRight } from "react-icons/fi";
 
-const BUTTON_STYLES = {
-  Attendance: { start: "#3b82f6", end: "#6366f1" },
-  "My Tasks": { start: "#34d399", end: "#059669" },
-  "My Leaves": { start: "#fbbf24", end: "#fb923c" },
-  Profile: { start: "#8b5cf6", end: "#4f46e5" },
-  default: { start: "#d1d5db", end: "#9ca3af" },
+/**
+ * Styling configuration for the QuickLink tiles.
+ * Each key corresponds to the link label.
+ */
+const LINK_CONFIG = {
+  Progress: { 
+    start: "from-blue-600", 
+    end: "to-indigo-700", 
+    icon: <FiClock />,
+    shadow: "shadow-blue-500/20"
+  },
+  "My Tasks": { 
+    start: "from-emerald-500", 
+    end: "to-teal-700", 
+    icon: <FiCheckSquare />,
+    shadow: "shadow-emerald-500/20"
+  },
+  "My Leaves": { 
+    start: "from-amber-400", 
+    end: "to-orange-600", 
+    icon: <FiCalendar />,
+    shadow: "shadow-amber-500/20"
+  },
+  Profile: { 
+    start: "from-purple-500", 
+    end: "to-violet-700", 
+    icon: <FiUser />,
+    shadow: "shadow-purple-500/20"
+  },
+  default: { 
+    start: "from-slate-500", 
+    end: "to-slate-700", 
+    icon: <FiChevronRight />,
+    shadow: "shadow-slate-500/20"
+  },
 };
 
 export default function QuickLinks() {
   const { isDark } = useContext(ThemeContext);
 
   const links = [
-    { to: "/employee/attendance", label: "Attendance", desc: "Mark & view" },
-    { to: "/employee/tasks", label: "My Tasks", desc: "Open tasks" },
-    { to: "/employee/leave-requests", label: "My Leaves", desc: "Apply / history" },
-    { to: "/employee/profile", label: "Profile", desc: "View & edit" },
+    { to: "/employee/progress", label: "Progress", desc: "Check analytics" },
+    { to: "/employee/tasks", label: "My Tasks", desc: "Manage work" },
+    { to: "/employee/leave-requests", label: "My Leaves", desc: "Request time" },
+    { to: "/employee/profile", label: "Profile", desc: "User settings" },
   ];
 
+  // Dynamic container styling based on theme
   const containerClass = isDark
-    ? "rounded-xl p-3 sm:p-4 bg-slate-800 border border-slate-700 text-slate-100 shadow-sm"
-    : "rounded-xl p-3 sm:p-4 bg-white border border-gray-100 text-slate-900 shadow-sm";
-  const subtitleClass = isDark ? "text-slate-300" : "text-gray-500";
+    ? "rounded-2xl p-5 bg-slate-800/50 backdrop-blur-md border border-slate-700 shadow-xl"
+    : "rounded-2xl p-5 bg-white border border-gray-100 shadow-lg shadow-slate-200/50";
 
   return (
-    <aside className={containerClass}>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Quick links</h3>
-        <div className={`text-xs ${subtitleClass} hidden sm:block`}>Shortcuts</div>
+    <section className={`${containerClass} transition-all duration-300`}>
+      {/* Header Section */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className={`text-lg font-bold tracking-tight ${isDark ? "text-white" : "text-slate-800"}`}>
+            Quick Actions
+          </h3>
+          <p className="text-xs text-slate-500 font-medium">Frequent navigation shortcuts</p>
+        </div>
+        <div className="hidden sm:block">
+          <span className="px-2 py-1 rounded-md bg-blue-500/10 text-blue-500 text-[10px] font-bold uppercase tracking-wider">
+            Ready
+          </span>
+        </div>
       </div>
 
-      {/* responsive grid: single column on xs, two columns on sm+ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Grid Responsiveness:
+          - 1 column on mobile (grid-cols-1)
+          - 2 columns on small tablets (sm:grid-cols-2)
+          - 4 columns on large desktops (2xl:grid-cols-4)
+      */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4">
         {links.map((l) => {
-          const style = BUTTON_STYLES[l.label] || BUTTON_STYLES.default;
+          const cfg = LINK_CONFIG[l.label] || LINK_CONFIG.default;
 
           return (
             <NavLink
               key={l.to}
               to={l.to}
-              aria-label={l.label}
-              className={({ isActive }) =>
-                `group relative flex items-center gap-3 p-3 sm:p-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 ${
-                  isActive ? "shadow-md" : "hover:scale-[1.02]"
-                }`
-              }
-              style={({ isActive }) => ({
-                background: `linear-gradient(90deg, ${style.start} 0%, ${style.end} 100%)`,
-                opacity: isActive ? 1 : 0.98,
-              })}
+              className={({ isActive }) => `
+                relative group overflow-hidden flex flex-col p-4 rounded-xl transition-all duration-300
+                bg-gradient-to-br ${cfg.start} ${cfg.end}
+                ${isActive ? "ring-2 ring-offset-2 ring-blue-500 scale-[0.98]" : "hover:-translate-y-1 hover:shadow-2xl " + cfg.shadow}
+              `}
             >
-              {/* left accent bar - smaller on xs */}
-              <span
-                className="flex-none rounded-md"
-                style={{
-                  width: window.innerWidth < 640 ? 6 : 10,
-                  height: window.innerWidth < 640 ? 36 : 40,
-                  background: `linear-gradient(180deg, ${style.start}, ${style.end})`,
-                }}
-                aria-hidden
-              />
+              {/* Decorative background circle for visual depth */}
+              <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500" />
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline justify-between">
-                  <div className="font-medium truncate text-sm sm:text-base">{l.label}</div>
-                  {/* hide small desc on xs */}
-                  <div className={`text-xs ${subtitleClass} hidden sm:block`}>{l.desc}</div>
+              <div className="flex items-start justify-between text-white">
+                <div className="p-2 rounded-lg bg-white/20 backdrop-blur-md text-xl mb-3 shadow-inner">
+                  {cfg.icon}
                 </div>
-                <div className={`text-xs mt-1 ${isDark ? "text-slate-200/80" : "text-white/90"} truncate sm:truncate`}>
-                  {/* on dark mode we keep lighter subtitle; on light mode the gradient is strong so we keep white text */}
-                  <span className="hidden sm:inline">Quick access to </span>
-                  <span className="font-medium">{l.label}</span>
+                <FiChevronRight className="opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              </div>
+
+              <div className="text-white mt-auto">
+                <div className="font-bold text-base tracking-tight">{l.label}</div>
+                <div className="text-[11px] font-medium opacity-80 mt-0.5 leading-tight">
+                  {l.desc}
                 </div>
               </div>
             </NavLink>
@@ -81,8 +114,12 @@ export default function QuickLinks() {
         })}
       </div>
 
-      {/* small footer / hint for mobile */}
-      <div className={`mt-3 text-xs ${subtitleClass} sm:hidden`}>Tap a tile to open</div>
-    </aside>
+      {/* Footer hint for Mobile UX */}
+      <div className="mt-5 pt-4 border-t border-slate-500/10 sm:hidden">
+        <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          Tap to navigate
+        </p>
+      </div>
+    </section>
   );
 }

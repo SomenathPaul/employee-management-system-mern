@@ -2,6 +2,9 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/users");
+const Attendance = require("../models/attendance");
+// const REQUIRED_MS = 5 * 60 * 60 * 1000; // 5 hours
+
 
 exports.register = async (req, res) => {
   try {
@@ -20,6 +23,25 @@ exports.register = async (req, res) => {
 
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ success: false, msg: "User already exists" });
+
+    if (!req.body.emailVerified) {
+  return res.status(400).json({
+    msg: "Email not verified",
+  });
+}
+
+// const EmailOtp = require("../models/EmailOtp");
+
+// const otpRecord = await EmailOtp.findOne({
+//   email: req.body.email,
+//   verified: true,
+// });
+
+// if (!otpRecord) {
+//   return res.status(400).json({
+//     msg: "Email not verified"
+//   });
+// }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -43,6 +65,7 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       securityQuestion, securityAnswer,
       termsAccepted,
+      emailVerified: true,
     });
 
     await user.save();
@@ -63,6 +86,7 @@ exports.register = async (req, res) => {
         department: user.department,
       },
     });
+
   } catch (err) {
     console.error("Registration error:", err);
     res.status(500).json({
@@ -89,6 +113,35 @@ exports.login = async (req, res) => {
 
     const payload = { userId: user._id, role: user.role };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1d" });
+
+if (user.role.toLowerCase() === "employee") {
+  const today = new Date().toISOString().slice(0, 10);
+
+  try {
+    await Attendance.findOneAndUpdate(
+      { user: user._id, date: today },
+      {
+        $setOnInsert: {
+          user: user._id,
+          employeeId: user.employeeId,
+          employeeName: user.name,
+          date: today,
+          startTime: new Date(),
+          status: "PENDING",
+        },
+      },
+      { upsert: true }
+    );
+  } catch (err) {
+    if (err.code !== 11000) throw err;
+  }
+}
+
+
+
+    
+
+
 
     res.json({
       success: true,
@@ -123,3 +176,5 @@ exports.login = async (req, res) => {
     });
   }
 };
+
+

@@ -47,7 +47,7 @@ const Unauthorized = () => {
             onClick={handleTryAgain}
             className="px-4 py-2 rounded bg-white/10 border border-white/30 text-white hover:bg-white/20 transition"
           >
-            Click twice to try again
+            Click here to try again
           </button>
         ) : (
           <NavLink to="/login" className="px-4 py-2 rounded bg-white text-black">

@@ -4,26 +4,29 @@ import api from "../../../utils/api";
 import Swal from "sweetalert2";
 import { AuthContext } from "../../../context/AuthContext";
 import { ThemeContext } from "../../../context/ThemeContext";
+import { FiX, FiSearch, FiUserPlus, FiCalendar, FiFlag, FiTag, FiCheck } from "react-icons/fi";
 
 /**
-  Props:
-    open, onClose, onCreated (callback)
-*/
+ * AssignTaskModal Component
+ * Purpose: A centralized modal for managers to create and delegate tasks to team members.
+ * Includes real-time employee search with debouncing.
+ */
 export default function AssignTaskModal({ open, onClose, onCreated }) {
   const { user } = useContext(AuthContext);
   const { isDark } = useContext(ThemeContext);
 
+  // --- FORM STATE ---
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("Medium");
   const [tags, setTags] = useState("");
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState([]); // search results for employees
-  const [selected, setSelected] = useState([]); // array of { employeeId, name }
+  const [results, setResults] = useState([]); // Dynamic employee search results
+  const [selected, setSelected] = useState([]); // Currently selected assignees
   const [loadingResults, setLoadingResults] = useState(false);
 
-  // reset when closed
+  // Reset form data when the modal is closed to ensure a clean state on re-open
   useEffect(() => {
     if (!open) {
       setTitle("");
@@ -37,7 +40,7 @@ export default function AssignTaskModal({ open, onClose, onCreated }) {
     }
   }, [open]);
 
-  // debounce search -> api call
+  // --- SEARCH LOGIC (WITH DEBOUNCE) ---
   useEffect(() => {
     if (!search || !search.trim()) {
       setResults([]);
@@ -46,17 +49,20 @@ export default function AssignTaskModal({ open, onClose, onCreated }) {
     }
 
     setLoadingResults(true);
-    const t = setTimeout(async () => {
+    // Prevents making an API call on every keystroke
+    const debounceTimeout = setTimeout(async () => {
       try {
-        const q = search.trim();
+        const query = search.trim();
         const res = await api.get("/manager/employees", {
-          params: { search: q, limit: 12 },
+          params: { search: query, limit: 10 },
         });
+        
         const list = (res.data?.data || []).map((u) => ({
           employeeId: u.employeeId,
           name: u.name,
         }));
-        // filter out already selected
+
+        // Filter out employees who are already selected to avoid duplicates
         const filtered = list.filter(
           (l) => !selected.some((s) => s.employeeId === l.employeeId)
         );
@@ -67,31 +73,27 @@ export default function AssignTaskModal({ open, onClose, onCreated }) {
       } finally {
         setLoadingResults(false);
       }
-    }, 300);
+    }, 400); // 400ms delay
 
-    return () => clearTimeout(t);
+    return () => clearTimeout(debounceTimeout);
   }, [search, selected]);
 
   const toggleSelect = (emp) => {
     const exists = selected.find((s) => s.employeeId === emp.employeeId);
     if (exists) {
       setSelected((sel) => sel.filter((s) => s.employeeId !== emp.employeeId));
-      // put back to results so user can re-add quickly
-      setResults((r) => [emp, ...r]);
     } else {
       setSelected((sel) => [...sel, emp]);
-      // remove from results UI
       setResults((r) => r.filter((x) => x.employeeId !== emp.employeeId));
     }
   };
 
+  /**
+   * Final validation and API submission
+   */
   const handleCreate = async () => {
     if (!title.trim() || selected.length === 0) {
-      Swal.fire(
-        "Validation",
-        "Please provide title and at least one assignee",
-        "warning"
-      );
+      Swal.fire("Incomplete Form", "Task title and at least one assignee are required.", "warning");
       return;
     }
 
@@ -105,200 +107,165 @@ export default function AssignTaskModal({ open, onClose, onCreated }) {
         })),
         dueDate: dueDate || null,
         priority,
-        tags: tags
-          ? tags.split(",").map((t) => t.trim()).filter(Boolean)
-          : [],
+        tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       };
 
       const res = await api.post("/manager/tasks", payload);
-      Swal.fire("Created", "Task created successfully", "success");
+      Swal.fire("Task Assigned", "Team members have been notified.", "success");
       onCreated && onCreated(res.data);
       onClose && onClose();
     } catch (err) {
-      console.error("create task error", err);
-      Swal.fire(
-        "Error",
-        err.response?.data?.msg || "Failed to create task",
-        "error"
-      );
+      Swal.fire("Error", "Could not create task. Check connection.", "error");
     }
   };
 
   if (!open) return null;
 
-  // theme classes
-  const overlay = "fixed inset-0 z-50 flex items-center justify-center p-4";
-  const backdrop = isDark ? "bg-black/70" : "bg-black/40";
-  const panel = isDark
-    ? "bg-slate-900 text-gray-200 border border-slate-700"
-    : "bg-white text-gray-900 border border-gray-100";
-  const inputBase = isDark
-    ? "w-full border p-2 rounded bg-slate-800 border-slate-700 text-gray-100 placeholder:text-gray-400"
-    : "w-full border p-2 rounded bg-white border-gray-300 text-gray-900 placeholder:text-gray-500";
-  const labelBase = isDark ? "text-sm block text-gray-200" : "text-sm block text-gray-700";
-  const chipBase = isDark
-    ? "px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-gray-200 flex items-center gap-2"
-    : "px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-800 flex items-center gap-2";
-  const addBtn = isDark
-    ? "px-2 py-1 text-xs rounded bg-green-700 text-white hover:bg-green-600"
-    : "px-2 py-1 text-xs rounded bg-green-100 text-green-800 hover:bg-green-200";
-  const removeBtn = isDark
-    ? "ml-2 text-xs text-red-300 hover:text-red-100"
-    : "ml-2 text-xs text-red-600 hover:text-red-800";
-  const resultRow = isDark
-    ? "flex items-center justify-between p-2 rounded hover:bg-slate-800/60 border border-slate-700"
-    : "flex items-center justify-between p-2 rounded hover:bg-gray-50 border border-gray-100";
+  // --- THEME DYNAMIC STYLES ---
+  const panelBg = isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-gray-100 text-slate-900";
+  const inputBase = isDark ? "bg-slate-800 border-slate-700 text-white focus:ring-blue-500/50" : "bg-gray-50 border-gray-200 text-slate-900 focus:ring-blue-500/20";
+  const labelStyle = "text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5 flex items-center gap-1.5";
 
   return (
-    <div className={`${overlay} ${backdrop}`}>
-      <div className={`w-full max-w-2xl rounded-lg shadow-lg p-6 ${panel} overflow-auto max-h-[90vh]`}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Assign Task</h3>
-          <button onClick={onClose} className={isDark ? "text-gray-300 hover:text-gray-100" : "text-gray-600 hover:text-gray-900"}>
-            Close
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      {/* Backdrop with blur */}
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
+
+      <div className={`relative w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 border ${panelBg}`}>
+        
+        {/* MODAL HEADER */}
+        <div className="flex items-center justify-between p-6 border-b border-inherit">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 rounded-xl text-white">
+              <FiUserPlus size={20} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black tracking-tight">Assign New Task</h3>
+              <p className="text-[10px] uppercase opacity-50 font-bold">Delegation Hub</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-500/10 transition-colors">
+            <FiX size={24} />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <label className={labelBase}>Title</label>
-            <input
-              className={inputBase}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className={labelBase}>Description</label>
-            <textarea
-              className={`${inputBase} min-h-[90px]`}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className={labelBase}>Due date</label>
-            <input
-              type="date"
-              className={inputBase}
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className={labelBase}>Priority</label>
-            <select
-              className={inputBase}
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-            >
-              <option>Low</option>
-              <option>Medium</option>
-              <option>High</option>
-              <option>Critical</option>
-            </select>
-          </div>
-
-          <div className="md:col-span-2">
-            <label className={labelBase}>Tags (comma separated)</label>
-            <input
-              className={inputBase}
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="e.g. frontend, urgent"
-            />
-          </div>
-
-          {/* Employee search & selection */}
-          <div className="md:col-span-2">
-            <label className={labelBase}>Search employee to assign</label>
-
-            {/* Search input + hint */}
-            <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="p-6 overflow-y-auto max-h-[75vh] space-y-6">
+          
+          {/* TITLE & DESCRIPTION */}
+          <div className="grid grid-cols-1 gap-6">
+            <div>
+              <label className={labelStyle}><FiTag /> Task Title</label>
               <input
-                className={`${inputBase} flex-1`}
+                className={`${inputBase} w-full p-3 rounded-xl border outline-none transition-all`}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Q4 Financial Audit"
+              />
+            </div>
+
+            <div>
+              <label className={labelStyle}><FiTag /> Description</label>
+              <textarea
+                className={`${inputBase} w-full p-3 rounded-xl border outline-none transition-all min-h-[100px] resize-none`}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Detail the task objectives..."
+              />
+            </div>
+          </div>
+
+          {/* META: DATE & PRIORITY */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className={labelStyle}><FiCalendar /> Deadline</label>
+              <input
+                type="date"
+                className={`${inputBase} w-full p-3 rounded-xl border outline-none`}
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className={labelStyle}><FiFlag /> Priority Level</label>
+              <select
+                className={`${inputBase} w-full p-3 rounded-xl border outline-none appearance-none`}
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+              >
+                <option value="Low">Low Priority</option>
+                <option value="Medium">Medium Priority</option>
+                <option value="High">High Priority</option>
+                <option value="Critical">Critical Priority</option>
+              </select>
+            </div>
+          </div>
+
+          {/* ASSIGNEE SEARCH SYSTEM */}
+          <div>
+            <label className={labelStyle}><FiSearch /> Assign Team Members</label>
+            
+            <div className="relative group">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30 group-focus-within:text-blue-500 transition-colors" />
+              <input
+                className={`${inputBase} w-full pl-10 pr-4 py-3 rounded-xl border outline-none transition-all`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name or ID"
-                aria-label="Search employees"
+                placeholder="Search by name or employee ID..."
               />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    // quick clear
-                    setSearch("");
-                    setResults([]);
-                  }}
-                  className={isDark ? "px-3 py-2 cursor-pointer bg-slate-700 rounded text-gray-200" : "px-3 py-1 bg-gray-100 rounded text-gray-800"}
-                >
-                  Clear
-                </button>
-              </div>
             </div>
 
-            {/* Selected chips */}
-            <div className="mt-3 flex gap-2 flex-wrap">
-              {selected.length === 0 ? (
-                <div className={isDark ? "text-gray-400 text-sm" : "text-gray-500 text-sm"}>No assignees yet</div>
-              ) : (
-                selected.map((s) => (
-                  <div key={s.employeeId} className={chipBase}>
-                    <span className="text-sm truncate">{s.name} • {s.employeeId}</span>
-                    <button onClick={() => toggleSelect(s)} className={removeBtn} aria-label={`Remove ${s.name}`}>
-                      ×
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Results dropdown */}
-            <div className="mt-3">
-              {loadingResults && (
-                <div className={isDark ? "text-gray-300 text-sm" : "text-gray-600 text-sm"}>Searching…</div>
-              )}
-
-              {!loadingResults && results.length === 0 && search.trim() !== "" && (
-                <div className={isDark ? "text-gray-400 text-sm" : "text-gray-500 text-sm"}>No matches</div>
-              )}
-
-              {!loadingResults && results.length > 0 && (
-                <div className="mt-2 grid gap-2 max-h-48 overflow-auto">
-                  {results.map((r) => (
-                    <div key={r.employeeId} className={resultRow}>
-                      <div>
-                        <div className={isDark ? "font-medium text-gray-100" : "font-medium text-gray-900"}>{r.name}</div>
-                        <div className={isDark ? "text-xs text-gray-400" : "text-xs text-gray-500"}>{r.employeeId}</div>
-                      </div>
-                      <div>
-                        <button
-                          onClick={() => toggleSelect(r)}
-                          className={addBtn}
-                          aria-label={`Add ${r.name}`}
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+            {/* Selection Tray */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {selected.map((s) => (
+                <div key={s.employeeId} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold animate-in zoom-in-95">
+                  <span>{s.name}</span>
+                  <button onClick={() => toggleSelect(s)} className="hover:text-red-200 transition-colors"><FiX /></button>
                 </div>
-              )}
+              ))}
+              {selected.length === 0 && <p className="text-xs italic opacity-40 py-2">No one assigned yet.</p>}
             </div>
+
+            {/* Dynamic Results Dropdown */}
+            {search.trim() !== "" && (
+              <div className={`mt-2 rounded-2xl border ${isDark ? "bg-slate-800 border-slate-700" : "bg-white border-gray-100"} shadow-xl max-h-40 overflow-y-auto`}>
+                {loadingResults ? (
+                  <div className="p-4 text-center text-xs opacity-50 animate-pulse">Syncing Directory...</div>
+                ) : results.length > 0 ? (
+                  results.map((r) => (
+                    <button
+                      key={r.employeeId}
+                      onClick={() => toggleSelect(r)}
+                      className="w-full flex items-center justify-between p-3 hover:bg-blue-500/10 transition-colors border-b border-inherit last:border-0"
+                    >
+                      <div className="text-left">
+                        <p className="text-sm font-bold">{r.name}</p>
+                        <p className="text-[10px] opacity-50 font-mono">{r.employeeId}</p>
+                      </div>
+                      <FiCheck className="text-blue-500 opacity-0 group-hover:opacity-100" />
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-xs opacity-50">No matching employees found</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="mt-4 flex justify-end gap-3">
-          <button onClick={onClose} className={isDark ? "px-3 py-1 bg-slate-700 rounded text-gray-200" : "px-3 py-1 bg-gray-200 rounded text-gray-800"}>
+        {/* MODAL FOOTER ACTIONS */}
+        <div className="p-6 bg-inherit border-t border-inherit flex flex-col sm:flex-row justify-end gap-3">
+          <button 
+            onClick={onClose} 
+            className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${isDark ? "bg-slate-800 text-slate-300 hover:bg-slate-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+          >
             Cancel
           </button>
-          <button onClick={handleCreate} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
-            Create Task
+          <button 
+            onClick={handleCreate} 
+            className="px-8 py-2.5 rounded-xl font-bold text-sm bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 active:scale-95 transition-all"
+          >
+            Dispatch Task
           </button>
         </div>
       </div>

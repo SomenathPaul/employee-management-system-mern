@@ -5,6 +5,10 @@ const { register, login } = require("../controllers/register"); // your controll
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
+const auth = require("../middleware/authMiddleware");
+const { logout } = require("../controllers/logoutController");
+
+router.post("/logout", auth, logout);
 
 // ensure uploads folder exists
 const uploadDir = path.join(__dirname, "..", "uploads");

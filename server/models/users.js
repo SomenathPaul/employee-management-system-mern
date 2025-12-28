@@ -16,6 +16,11 @@ const userSchema = new mongoose.Schema({
   emergencyContactName: { type: String },
   emergencyPhone: { type: String },
 
+  emailVerified: {
+  type: Boolean,
+  default: false,
+},
+
   // Step 2: Employee Details
   role: {
     type: String,
